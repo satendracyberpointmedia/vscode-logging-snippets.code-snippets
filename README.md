@@ -57,6 +57,8 @@ log_json → console.log(JSON.stringify(user, null, 2));
 logger_err → logger.error(`[ERROR]: Failed to connect to DB`);
 log_entry → console.log(`[ENTRY] Function: createUser at 2025-06-24T06:00:00Z`);
 
+Uses :- Open your vs code, press ctrl+p, search user snippets, select JS or TS file, than paste below json code in file.
+
 {
   // 🔹 BASIC CONSOLE LOGGING
   "Print to console (Info)": {
