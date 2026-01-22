@@ -204,23 +204,46 @@ Client            Services Service      MongoDB (Orders+Outbox)   Outbox Worker 
 ```
 
 #### 3.2 Custom Service Request & Negotiation Flow
+Flow Overview:
+1. Client creates custom request -> order with isRequest=true, timeline/cost optional
+2. New conversation created for negotiation (free messaging)
+3. Expert accepts request -> isExpertAccepted=true, messaging starts
+4. Expert creates custom order -> isRequest=false, timeline/cost required
+5. Client accepts order -> isClientAccepted=true, payment hold proceeds
+
 ```
-Client        Services        MongoDB(customRequests+outbox)   Outbox Worker   Messaging   Expert     Temporal
-  |              |                        |                        |             |           |           |
-  |--CustomReq-->|                        |                        |             |           |           |
-  |              |--create req+outbox---> | (Tx)                   |             |           |           |
-  |              |<-----requestId-------- |                        |             |           |           |
-  |<--Created----|                        |                        |             |           |           |
-  |              | (start CustomRequestWorkflow)                   |             |           |           |
-  |              |                        |                        |--event----->|--notify-->|
-  |              |                        |                        |             |           |
-[Expert reviews/negotiates max 2 rounds]  |                        |             |           |
-  |<--msgs via Messaging Service--------->|<-------message events via outbox & MQ---------->|
-  |              |                        |                        |             |           |
-  |--AcceptOffer->|                       |--create order+update req+outbox (Tx)           |
-  |              |                        |                        |--order.created------->|
-  |              | (start OrderLifecycleWorkflow, mark req converted)                      |
-  |<--Order Id---|                        |                        |             |           |
+Client Services MongoDB(orders+outbox) Outbox Worker Messaging Expert Temporal
+| | | | | | |
+|--CustomReq-->| | | | | |
+| |--create order--------- | (Tx: isRequest=true, status=PENDING, conversationId created)
+| | (isRequest=true) | | | |
+| | (timeline/cost optional) | | |
+| |<-----orderId-----------| | | |
+|<--Created----| | | | | |
+| | (start CustomRequestWorkflow) | | |
+| | | |--event----->|--notify-->|
+| | | | | |
+| | | | [Expert reviews request] |
+| | | | | |
+| | | |<--accept--| |
+|<--Expert Accepts---------------------------- | | |
+| |--update order+outbox--> | (isExpertAccepted=true) | |
+| | | | | |
+[Negotiation via free conversation] | | | |
+|<--msgs via Messaging Service (free)--> |<-------message events via outbox & MQ---------->|
+| | | | | |
+| | | [Expert creates order after negotiation]
+| | |<--create--| |
+|<--Expert Creates Order-|------------------| | order |
+| |--update order+outbox--> | (isRequest=false, timeline/cost REQUIRED) |
+| | (status=CREATED) | | |
+| | |--order.created event-->| |
+|<--notify-----| | | | |
+| | | | | |
+|--Accept Order| | | | |
+| |--update order+outbox--> | (isClientAccepted=true) | |
+| | (start OrderLifecycleWorkflow) | |
+|<--Order Confirmed | | | |
 ```
 
 #### 3.3 Auto-Rejection Flow (7 Days Timeout via Temporal)
