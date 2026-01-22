@@ -212,38 +212,37 @@ Flow Overview:
 5. Client accepts order -> isClientAccepted=true, payment hold proceeds
 
 ```
-Client Services MongoDB(orders+outbox) Outbox Worker Messaging Expert Temporal
-| | | | | | |
-|--CustomReq-->| | | | | |
-| |--create order--------- | (Tx: isRequest=true, status=PENDING, conversationId created)
-| | (isRequest=true) | | | |
-| | (timeline/cost optional) | | |
-| |<-----orderId-----------| | | |
-|<--Created----| | | | | |
-| | (start CustomRequestWorkflow) | | |
-| | | |--event----->|--notify-->|
-| | | | | |
-| | | | [Expert reviews request] |
-| | | | | |
-| | | |<--accept--| |
-|<--Expert Accepts---------------------------- | | |
-| |--update order+outbox--> | (isExpertAccepted=true) | |
-| | | | | |
-[Negotiation via free conversation] | | | |
-|<--msgs via Messaging Service (free)--> |<-------message events via outbox & MQ---------->|
-| | | | | |
-| | | [Expert creates order after negotiation]
-| | |<--create--| |
-|<--Expert Creates Order-|------------------| | order |
-| |--update order+outbox--> | (isRequest=false, timeline/cost REQUIRED) |
-| | (status=CREATED) | | |
-| | |--order.created event-->| |
-|<--notify-----| | | | |
-| | | | | |
-|--Accept Order| | | | |
-| |--update order+outbox--> | (isClientAccepted=true) | |
-| | (start OrderLifecycleWorkflow) | |
-|<--Order Confirmed | | | |
+Client        Services        MongoDB(orders+outbox)    Outbox Worker    Messaging    Expert    Temporal
+  |              |                    |                     |             |          |          |
+  |--CustomReq-->|                    |                     |             |          |          |
+  |              |--create order----->| (Tx: isRequest=true, status=PENDING, conversationId created)
+  |              |  (isRequest=true)  |                     |             |          |          |
+  |              |  (timeline/cost optional)                |             |          |          |
+  |              |<-----orderId------|                     |             |          |          |
+  |<--Created----|                    |                     |             |          |          |
+  |              | (start CustomRequestWorkflow)            |             |          |          |
+  |              |                    |--event------------->|--notify---->|          |          |
+  |              |                    |                     |             |          |          |
+  |              |                    |  [Expert reviews request]          |          |          |
+  |              |                    |                     |             |<--accept--|         |
+  |<--Expert Accepts------------------|                     |             |          |          |
+  |              |--update order+outbox--> (isExpertAccepted=true)          |          |          |
+  |              |                    |                     |             |          |          |
+[Negotiation via free conversation]   |                     |             |          |          |
+  |<--msgs via Messaging Service (free)-->                   |<--message events via outbox & MQ-->|
+  |              |                    |                     |             |          |          |
+  |              |                    |  [Expert creates order after negotiation]     |          |
+  |              |                    |                     |             |<--create--|         |
+  |<--Expert Creates Order-------------|                     |             |   order   |         |
+  |              |--update order+outbox--> (isRequest=false, timeline/cost REQUIRED)   |          |
+  |              |  (status=CREATED)   |                     |             |          |          |
+  |              |                    |--order.created event------------------------->|          |
+  |<--notify-----|                    |                     |             |          |          |
+  |              |                    |                     |             |          |          |
+  |--Accept Order|                    |                     |             |          |          |
+  |              |--update order+outbox--> (isClientAccepted=true)          |          |          |
+  |              | (start OrderLifecycleWorkflow)            |             |          |          |
+  |<--Order Confirmed                   |                     |             |          |          |
 ```
 
 #### 3.3 Auto-Rejection Flow (7 Days Timeout via Temporal)
